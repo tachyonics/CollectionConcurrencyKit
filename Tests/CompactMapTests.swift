@@ -7,72 +7,80 @@
 import XCTest
 import CollectionConcurrencyKit
 
-final class CompactMapTests: TestCase {
-    func testNonThrowingAsyncCompactMap() {
-        runAsyncTest { array, collector in
-            let values = await array.asyncCompactMap { int in
-                await int == 3 ? nil : collector.collectAndTransform(int)
-            }
-
-            XCTAssertEqual(values, ["0", "1", "2", "4"])
+final class CompactMapTests: XCTestCase {
+    private static let array = Array(0..<5)
+    
+    func testNonThrowingAsyncCompactMap() async {
+        let values = await Self.array.asyncCompactMap { int in
+            return int == 3 ? nil : int
         }
+
+        XCTAssertEqual(values, [0, 1, 2, 4])
     }
 
-    func testThrowingAsyncCompactMapThatDoesNotThrow() {
-        runAsyncTest { array, collector in
-            let values = try await array.asyncCompactMap { int in
-                try await int == 3 ? nil : collector.tryCollectAndTransform(int)
+    func testThrowingAsyncCompactMapThatDoesNotThrow() async throws {
+        let values = try await Self.array.asyncCompactMap { int -> Int? in
+            if int == 1000 {
+                throw TestError.theError
             }
-
-            XCTAssertEqual(values, ["0", "1", "2", "4"])
+            
+            return int == 3 ? nil : int
         }
-    }
 
-    func testThrowingAsyncCompactMapThatThrows() {
-        runAsyncTest { array, collector in
-            await self.verifyErrorThrown { error in
-                try await array.asyncCompactMap { int in
-                    int == 2 ? nil : try await collector.tryCollectAndTransform(
-                        int,
-                        throwError: int == 3 ? error : nil
-                    )
+        XCTAssertEqual(values, [0, 1, 2, 4])
+    }
+    
+    func testThrowingAsyncCompactMapThatDoesThrow() async throws {
+        do {
+            _ = try await Self.array.asyncCompactMap { int -> Int? in
+                if int == 2 {
+                    throw TestError.theError
                 }
+                
+                return int == 3 ? nil : int
             }
-
-            XCTAssertEqual(collector.values, [0, 1])
+        } catch TestError.theError {
+            // expected error
+            return
         }
+
+        XCTFail()
+    }
+    
+    func testNonThrowingConcurrentCompactMap() async {
+        let values = await Self.array.concurrentCompactMap { int in
+            return int == 3 ? nil : int
+        }
+
+        XCTAssertEqual(values, [0, 1, 2, 4])
     }
 
-    func testNonThrowingConcurrentCompactMap() {
-        runAsyncTest { array, collector in
-            let values = await array.concurrentCompactMap { int in
-                await int == 3 ? nil : collector.collectAndTransform(int)
+    func testThrowingConcurrentCompactMapThatDoesNotThrow() async throws {
+        let values = try await Self.array.concurrentCompactMap { int -> Int? in
+            if int == 1000 {
+                throw TestError.theError
             }
-
-            XCTAssertEqual(values, ["0", "1", "2", "4"])
+            
+            return int == 3 ? nil : int
         }
+
+        XCTAssertEqual(values, [0, 1, 2, 4])
     }
-
-    func testThrowingConcurrentCompactMapThatDoesNotThrow() {
-        runAsyncTest { array, collector in
-            let values = try await array.concurrentCompactMap { int in
-                try await int == 3 ? nil : collector.tryCollectAndTransform(int)
-            }
-
-            XCTAssertEqual(values, ["0", "1", "2", "4"])
-        }
-    }
-
-    func testThrowingConcurrentCompactMapThatThrows() {
-        runAsyncTest { array, collector in
-            await self.verifyErrorThrown { error in
-                try await array.concurrentCompactMap { int in
-                    try await self.collector.tryCollectAndTransform(
-                        int,
-                        throwError: int == 3 ? error : nil
-                    )
+    
+    func testThrowingConcurrentCompactMapThatDoesThrow() async throws {
+        do {
+            _ = try await Self.array.concurrentCompactMap { int -> Int? in
+                if int == 2 {
+                    throw TestError.theError
                 }
+                
+                return int == 3 ? nil : int
             }
+        } catch TestError.theError {
+            // expected error
+            return
         }
+
+        XCTFail()
     }
 }

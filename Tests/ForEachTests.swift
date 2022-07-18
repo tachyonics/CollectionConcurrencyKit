@@ -7,60 +7,96 @@
 import XCTest
 import CollectionConcurrencyKit
 
-final class ForEachTests: TestCase {
-    func testNonThrowingAsyncForEach() {
-        runAsyncTest { array, collector in
-            await array.asyncForEach { await collector.collect($0) }
-            XCTAssertEqual(collector.values, array)
+final class ForEachTests: XCTestCase {
+    private static let array = Array(0..<5)
+    
+    func testNonThrowingAsyncForEach() async {
+        let results = Results()
+        
+        await Self.array.asyncForEach { int in
+            await results.insert(int)
         }
+
+        let values = await results.set
+        XCTAssertEqual(values, Set(Self.array))
     }
 
-    func testThrowingAsyncForEachThatDoesNotThrow() {
-        runAsyncTest { array, collector in
-            try await array.asyncForEach { try await collector.tryCollect($0) }
-            XCTAssertEqual(collector.values, array)
-        }
-    }
-
-    func testThrowingAsyncForEachThatThrows() {
-        runAsyncTest { array, collector in
-            await self.verifyErrorThrown { error in
-                try await array.asyncForEach { int in
-                    try await collector.tryCollect(
-                        int,
-                        throwError: int == 3 ? error : nil
-                    )
-                }
+    func testThrowingAsyncForEachThatDoesNotThrow() async throws {
+        let results = Results()
+        
+        try await Self.array.asyncForEach { int in
+            if int == 1000 {
+                throw TestError.theError
             }
-
-            XCTAssertEqual(collector.values, [0, 1, 2])
+            
+            await results.insert(int)
         }
-    }
 
-    func testNonThrowingConcurrentForEach() {
-        runAsyncTest { array, collector in
-            await array.concurrentForEach { await collector.collect($0) }
-            XCTAssertEqual(collector.values.sorted(), array)
-        }
+        let values = await results.set
+        XCTAssertEqual(values, Set(Self.array))
     }
-
-    func testThrowingConcurrentForEachThatDoesNotThrow() {
-        runAsyncTest { array, collector in
-            try await array.concurrentForEach { try await collector.tryCollect($0) }
-            XCTAssertEqual(collector.values.sorted(), array)
-        }
-    }
-
-    func testThrowingConcurrentForEachThatThrows() {
-        runAsyncTest { array, collector in
-            await self.verifyErrorThrown { error in
-                try await array.concurrentForEach { int in
-                    try await collector.tryCollect(
-                        int,
-                        throwError: int == 3 ? error : nil
-                    )
+    
+    func testThrowingAsyncForEachThatDoesThrow() async throws {
+        let results = Results()
+        
+        do {
+            try await Self.array.asyncForEach { int in
+                if int == 2 {
+                    throw TestError.theError
                 }
+                
+                await results.insert(int)
             }
+        } catch TestError.theError {
+            // expected error
+            return
         }
+
+        XCTFail()
+    }
+    
+    func testNonThrowingConcurrentForEach() async {
+        let results = Results()
+        
+        await Self.array.concurrentForEach { int in
+            await results.insert(int)
+        }
+
+        let values = await results.set
+        XCTAssertEqual(values, Set(Self.array))
+    }
+
+    func testThrowingConcurrentForEachThatDoesNotThrow() async throws {
+        let results = Results()
+        
+        try await Self.array.concurrentForEach { int in
+            if int == 1000 {
+                throw TestError.theError
+            }
+            
+            await results.insert(int)
+        }
+
+        let values = await results.set
+        XCTAssertEqual(values, Set(Self.array))
+    }
+
+    func testThrowingConcurrentForEachThatDoesThrow() async throws {
+        let results = Results()
+        
+        do {
+            _ = try await Self.array.concurrentForEach { int in
+                if int == 2 {
+                    throw TestError.theError
+                }
+                
+                await results.insert(int)
+            }
+        } catch TestError.theError {
+            // expected error
+            return
+        }
+
+        XCTFail()
     }
 }

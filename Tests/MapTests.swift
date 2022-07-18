@@ -7,69 +7,80 @@
 import XCTest
 import CollectionConcurrencyKit
 
-final class MapTests: TestCase {
-    func testNonThrowingAsyncMap() {
-        runAsyncTest { array, collector in
-            let values = await array.asyncMap { await collector.collectAndTransform($0) }
-            XCTAssertEqual(values, array.map(String.init))
+final class MapTests: XCTestCase {
+    private static let array = Array(0..<5)
+    
+    func testNonThrowingAsyncMap() async {
+        let values = await Self.array.asyncMap { int in
+            return int + 1
         }
+
+        XCTAssertEqual(values, [1, 2, 3, 4, 5])
     }
 
-    func testThrowingAsyncMapThatDoesNotThrow() {
-        runAsyncTest { array, collector in
-            let values = try await array.asyncMap {
-                try await collector.tryCollectAndTransform($0)
+    func testThrowingAsyncMapThatDoesNotThrow() async throws {
+        let values = try await Self.array.asyncMap { int -> Int in
+            if int == 1000 {
+                throw TestError.theError
             }
-
-            XCTAssertEqual(values, array.map(String.init))
+            
+            return int + 1
         }
-    }
 
-    func testThrowingAsyncMapThatThrows() {
-        runAsyncTest { array, collector in
-            await self.verifyErrorThrown { error in
-                try await array.asyncMap { int in
-                    try await collector.tryCollectAndTransform(
-                        int,
-                        throwError: int == 3 ? error : nil
-                    )
+        XCTAssertEqual(values, [1, 2, 3, 4, 5])
+    }
+   
+    func testThrowingAsyncMapThatDoesThrow() async throws {
+        do {
+            _ = try await Self.array.asyncMap { int -> Int in
+                if int == 2 {
+                    throw TestError.theError
                 }
+                
+                return int + 1
             }
-
-            XCTAssertEqual(collector.values, [0, 1, 2])
+        } catch TestError.theError {
+            // expected error
+            return
         }
+
+        XCTFail()
+    }
+    
+    func testNonThrowingConcurrentMap() async {
+        let values = await Self.array.concurrentMap { int in
+            return int + 1
+        }
+
+        XCTAssertEqual(values, [1, 2, 3, 4, 5])
     }
 
-    func testNonThrowingConcurrentMap() {
-        runAsyncTest { array, collector in
-            let values = await array.concurrentMap {
-                await collector.collectAndTransform($0)
+    func testThrowingConcurrentMapThatDoesNotThrow() async throws {
+        let values = try await Self.array.concurrentMap { int -> Int in
+            if int == 1000 {
+                throw TestError.theError
             }
-
-            XCTAssertEqual(values, array.map(String.init))
+            
+            return int + 1
         }
+
+        XCTAssertEqual(values, [1, 2, 3, 4, 5])
     }
-
-    func testThrowingConcurrentMapThatDoesNotThrow() {
-        runAsyncTest { array, collector in
-            let values = try await array.concurrentMap {
-                try await collector.tryCollectAndTransform($0)
-            }
-
-            XCTAssertEqual(values, array.map(String.init))
-        }
-    }
-
-    func testThrowingConcurrentMapThatThrows() {
-        runAsyncTest { array, collector in
-            await self.verifyErrorThrown { error in
-                try await array.concurrentMap { int in
-                    try await collector.tryCollectAndTransform(
-                        int,
-                        throwError: int == 3 ? error : nil
-                    )
+    
+    func testThrowingConcurrentMapThatDoesThrow() async throws {
+        do {
+            _ = try await Self.array.concurrentMap { int -> Int? in
+                if int == 2 {
+                    throw TestError.theError
                 }
+                
+                return int + 1
             }
+        } catch TestError.theError {
+            // expected error
+            return
         }
+
+        XCTFail()
     }
 }

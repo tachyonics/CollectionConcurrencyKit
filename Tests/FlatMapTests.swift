@@ -7,72 +7,80 @@
 import XCTest
 import CollectionConcurrencyKit
 
-final class FlatMapTests: TestCase {
-    func testNonThrowingAsyncFlatMap() {
-        runAsyncTest { array, collector in
-            let values = await array.asyncFlatMap {
-                await collector.collectAndDuplicate($0)
-            }
-
-            XCTAssertEqual(values, array.flatMap { [$0, $0] })
+final class FlatMapTests: XCTestCase {
+    private static let array = Array(0..<5)
+    
+    func testNonThrowingAsyncFlatMap() async {
+        let values = await Self.array.asyncFlatMap { int in
+            return [int, int]
         }
+
+        XCTAssertEqual(values, Self.array.flatMap { [$0, $0] })
     }
 
-    func testThrowingAsyncFlatMapThatDoesNotThrow() {
-        runAsyncTest { array, collector in
-            let values = try await array.asyncFlatMap {
-                try await collector.tryCollectAndDuplicate($0)
+    func testThrowingAsyncFlatMapThatDoesNotThrow() async throws {
+        let values = try await Self.array.asyncFlatMap { int -> [Int] in
+            if int == 1000 {
+                throw TestError.theError
             }
-
-            XCTAssertEqual(values, array.flatMap { [$0, $0] })
+            
+            return [int, int]
         }
+
+        XCTAssertEqual(values, Self.array.flatMap { [$0, $0] })
     }
 
-    func testThrowingAsyncFlatMapThatThrows() {
-        runAsyncTest { array, collector in
-            await self.verifyErrorThrown { error in
-                try await array.asyncFlatMap { int in
-                    try await collector.tryCollectAndDuplicate(
-                        int,
-                        throwError: int == 3 ? error : nil
-                    )
+    func testThrowingAsyncFlatMapThatThrows() async throws {
+        do {
+            _ = try await Self.array.asyncFlatMap { int -> [Int] in
+                if int == 2 {
+                    throw TestError.theError
                 }
+                
+                return [int, int]
             }
-
-            XCTAssertEqual(collector.values, [0, 1, 2])
+        } catch TestError.theError {
+            // expected error
+            return
         }
+
+        XCTFail()
     }
 
-    func testNonThrowingConcurrentFlatMap() {
-        runAsyncTest { array, collector in
-            let values = await array.concurrentFlatMap {
-                await collector.collectAndDuplicate($0)
-            }
-
-            XCTAssertEqual(values, array.flatMap { [$0, $0] })
+    func testNonThrowingConcurrentFlatMap() async {
+        let values = await Self.array.concurrentFlatMap { int in
+            return [int, int]
         }
+
+        XCTAssertEqual(values, Self.array.flatMap { [$0, $0] })
     }
 
-    func testThrowingConcurrentFlatMapThatDoesNotThrow() {
-        runAsyncTest { array, collector in
-            let values = try await array.concurrentFlatMap {
-                try await collector.tryCollectAndDuplicate($0)
+    func testThrowingConcurrentFlatMapThatDoesNotThrow() async throws {
+        let values = try await Self.array.concurrentFlatMap { int -> [Int] in
+            if int == 1000 {
+                throw TestError.theError
             }
-
-            XCTAssertEqual(values, array.flatMap { [$0, $0] })
+            
+            return [int, int]
         }
+
+        XCTAssertEqual(values, Self.array.flatMap { [$0, $0] })
     }
 
-    func testThrowingConcurrentFlatMapThatThrows() {
-        runAsyncTest { array, collector in
-            await self.verifyErrorThrown { error in
-                try await array.concurrentFlatMap { int in
-                    try await collector.tryCollectAndDuplicate(
-                        int,
-                        throwError: int == 3 ? error : nil
-                    )
+    func testThrowingConcurrentFlatMapThatThrows() async throws {
+        do {
+            _ = try await Self.array.concurrentFlatMap { int -> [Int] in
+                if int == 2 {
+                    throw TestError.theError
                 }
+                
+                return [int, int]
             }
+        } catch TestError.theError {
+            // expected error
+            return
         }
+
+        XCTFail()
     }
 }
