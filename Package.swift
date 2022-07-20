@@ -8,6 +8,13 @@
 
 import PackageDescription
 
+let swiftSettings: [SwiftSetting]
+#if compiler(<5.6)
+swiftSettings = []
+#else
+swiftSettings = [.unsafeFlags(["-warn-concurrency"])]
+#endif
+
 let package = Package(
     name: "CollectionConcurrencyKit",
     platforms: [.iOS(.v13), .macOS(.v10_15), .watchOS(.v6), .tvOS(.v13)],
@@ -20,7 +27,8 @@ let package = Package(
     targets: [
         .target(
             name: "CollectionConcurrencyKit",
-            path: "Sources"
+            path: "Sources",
+            swiftSettings: swiftSettings
         ),
         .testTarget(
             name: "CollectionConcurrencyKitTests",

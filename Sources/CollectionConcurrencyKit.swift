@@ -22,6 +22,9 @@ public extension Sequence {
             try await operation(element)
         }
     }
+}
+
+public extension Sequence where Element: Sendable {
 
     /// Run an async closure for each element within the sequence.
     ///
@@ -35,7 +38,7 @@ public extension Sequence {
     /// - parameter operation: The closure to run for each element.
     func concurrentForEach(
         withPriority priority: TaskPriority? = nil,
-        _ operation: @escaping (Element) async -> Void
+        _ operation: @Sendable @escaping (Element) async -> Void
     ) async {
         await withTaskGroup(of: Void.self) { group in
             for element in self {
@@ -61,7 +64,7 @@ public extension Sequence {
     /// - throws: Rethrows any error thrown by the passed closure.
     func concurrentForEach(
         withPriority priority: TaskPriority? = nil,
-        _ operation: @escaping (Element) async throws -> Void
+        _ operation: @Sendable @escaping (Element) async throws -> Void
     ) async throws {
         try await withThrowingTaskGroup(of: Void.self) { group in
             for element in self {
@@ -101,7 +104,10 @@ public extension Sequence {
 
         return values
     }
+}
 
+public extension Sequence where Element: Sendable {
+    
     /// Transform the sequence into an array of new values using
     /// an async closure.
     ///
@@ -115,9 +121,9 @@ public extension Sequence {
     /// - parameter transform: The transform to run on each element.
     /// - returns: The transformed values as an array. The order of
     ///   the transformed values will match the original sequence.
-    func concurrentMap<T>(
+    func concurrentMap<T: Sendable>(
         withPriority priority: TaskPriority? = nil,
-        _ transform: @escaping (Element) async -> T
+        _ transform: @Sendable @escaping (Element) async -> T
     ) async -> [T] {
         return await withTaskGroup(of: (offset: Int, value: T).self) { group in
             var taskCount = 0
@@ -153,9 +159,9 @@ public extension Sequence {
     /// - returns: The transformed values as an array. The order of
     ///   the transformed values will match the original sequence.
     /// - throws: Rethrows any error thrown by the passed closure.
-    func concurrentMap<T>(
+    func concurrentMap<T: Sendable>(
         withPriority priority: TaskPriority? = nil,
-        _ transform: @escaping (Element) async throws -> T
+        _ transform: @Sendable @escaping (Element) async throws -> T
     ) async throws -> [T] {
         return try await withThrowingTaskGroup(of: (offset: Int, value: T).self) { group in
             var taskCount = 0
@@ -207,7 +213,10 @@ public extension Sequence {
 
         return values
     }
+}
 
+public extension Sequence where Element: Sendable {
+    
     /// Transform the sequence into an array of new values using
     /// an async closure that returns optional values. Only the
     /// non-`nil` return values will be included in the new array.
@@ -223,9 +232,9 @@ public extension Sequence {
     /// - returns: The transformed values as an array. The order of
     ///   the transformed values will match the original sequence,
     ///   except for the values that were transformed into `nil`.
-    func concurrentCompactMap<T>(
+    func concurrentCompactMap<T: Sendable>(
         withPriority priority: TaskPriority? = nil,
-        _ transform: @escaping (Element) async -> T?
+        _ transform: @Sendable @escaping (Element) async -> T?
     ) async -> [T] {
         return await withTaskGroup(of: (offset: Int, value: T?).self) { group in
             var taskCount = 0
@@ -263,9 +272,9 @@ public extension Sequence {
     ///   the transformed values will match the original sequence,
     ///   except for the values that were transformed into `nil`.
     /// - throws: Rethrows any error thrown by the passed closure.
-    func concurrentCompactMap<T>(
+    func concurrentCompactMap<T: Sendable>(
         withPriority priority: TaskPriority? = nil,
-        _ transform: @escaping (Element) async throws -> T?
+        _ transform: @Sendable @escaping (Element) async throws -> T?
     ) async throws -> [T] {
         return try await withThrowingTaskGroup(of: (offset: Int, value: T?).self) { group in
             var taskCount = 0
@@ -315,7 +324,10 @@ public extension Sequence {
 
         return values
     }
+}
 
+public extension Sequence where Element: Sendable {
+    
     /// Transform the sequence into an array of new values using
     /// an async closure that returns sequences. The returned sequences
     /// will be flattened into the array returned from this function.
@@ -332,9 +344,9 @@ public extension Sequence {
     ///   the transformed values will match the original sequence,
     ///   with the results of each closure call appearing in-order
     ///   within the returned array.
-    func concurrentFlatMap<T: Sequence>(
+    func concurrentFlatMap<T: Sequence & Sendable>(
         withPriority priority: TaskPriority? = nil,
-        _ transform: @escaping (Element) async -> T
+        _ transform: @Sendable @escaping (Element) async -> T
     ) async -> [T.Element] {
         return await withTaskGroup(of: (offset: Int, value: T).self) { group in
             var taskCount = 0
@@ -373,9 +385,9 @@ public extension Sequence {
     ///   with the results of each closure call appearing in-order
     ///   within the returned array.
     /// - throws: Rethrows any error thrown by the passed closure.
-    func concurrentFlatMap<T: Sequence>(
+    func concurrentFlatMap<T: Sequence & Sendable>(
         withPriority priority: TaskPriority? = nil,
-        _ transform: @escaping (Element) async throws -> T
+        _ transform: @Sendable @escaping (Element) async throws -> T
     ) async throws -> [T.Element] {
         return try await withThrowingTaskGroup(of: (offset: Int, value: T).self) { group in
             var taskCount = 0
